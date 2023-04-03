@@ -125,6 +125,7 @@ contract NonfungiblePositionManager is
     }
 
     /// @inheritdoc INonfungiblePositionManager
+    // 创建一个新的头寸，包裹成一个NFT
     function mint(MintParams calldata params)
         external
         payable
@@ -153,6 +154,7 @@ contract NonfungiblePositionManager is
             })
         );
 
+        // 铸造成一个ERC721标准的NFT
         _mint(params.recipient, (tokenId = _nextId++));
 
         bytes32 positionKey = PositionKey.compute(address(this), params.tickLower, params.tickUpper);

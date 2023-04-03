@@ -90,9 +90,12 @@ interface INonfungiblePositionManager is
         uint256 deadline;
     }
 
+    // 创建一个新的头寸，包裹成一个NFT
     /// @notice Creates a new position wrapped in a NFT
+    // 当池存在并已初始化后调用此方法。注意，如果池已经创建但没有初始化，则该方法不存在，即假定池已经初始化。
     /// @dev Call this when the pool does exist and is initialized. Note that if the pool is created but not initialized
     /// a method does not exist, i.e. the pool is assumed to be initialized.
+    // 创建位置所需的参数，在calldata中编码为“MintParams”
     /// @param params The params necessary to mint a position, encoded as `MintParams` in calldata
     /// @return tokenId The ID of the token that represents the minted position
     /// @return liquidity The amount of liquidity for this position

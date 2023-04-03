@@ -10,8 +10,11 @@ import '../libraries/TransferHelper.sol';
 
 import './PeripheryImmutableState.sol';
 
+// 边缘支付
 abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableState {
+    // 接收以太币的函数
     receive() external payable {
+        // 调用者必须时WETH9,只能WETH9地址给这个合约转入ETH币
         require(msg.sender == WETH9, 'Not WETH9');
     }
 
@@ -45,10 +48,10 @@ abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableSta
         if (address(this).balance > 0) TransferHelper.safeTransferETH(msg.sender, address(this).balance);
     }
 
-    /// @param token The token to pay
-    /// @param payer The entity that must pay
-    /// @param recipient The entity that will receive payment
-    /// @param value The amount to pay
+    /// @param token The token to pay  要支付的币种
+    /// @param payer The entity that must pay  支付者
+    /// @param recipient The entity that will receive payment 接收者
+    /// @param value The amount to pay 支付金额
     function pay(
         address token,
         address payer,

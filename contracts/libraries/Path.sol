@@ -8,17 +8,23 @@ library Path {
     using BytesLib for bytes;
 
     /// @dev The length of the bytes encoded address
+    // 编码地址的字节长度
     uint256 private constant ADDR_SIZE = 20;
     /// @dev The length of the bytes encoded fee
+    // 费率 编码后的字节的长度
     uint256 private constant FEE_SIZE = 3;
 
     /// @dev The offset of a single token address and pool fee
+    // 单个代币地址和池费的偏移量(偏移量 应可视作做 字节长度)
     uint256 private constant NEXT_OFFSET = ADDR_SIZE + FEE_SIZE;
     /// @dev The offset of an encoded pool key
+    // 已编码池键的偏移量
     uint256 private constant POP_OFFSET = NEXT_OFFSET + ADDR_SIZE;
     /// @dev The minimum length of an encoding that contains 2 or more pools
+    // 包含2个或更多池的编码的最小长度,3个地址+2个费率的长度
     uint256 private constant MULTIPLE_POOLS_MIN_LENGTH = POP_OFFSET + NEXT_OFFSET;
 
+    // 如果path里包含2个或更多池子，则返回true
     /// @notice Returns true iff the path contains two or more pools
     /// @param path The encoded swap path
     /// @return True if path contains two or more pools, otherwise false
@@ -33,7 +39,7 @@ library Path {
         // Ignore the first token address. From then on every fee and token offset indicates a pool.
         return ((path.length - ADDR_SIZE) / NEXT_OFFSET);
     }
-
+    // 解码路径中的第一个池
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
     /// @return tokenA The first token of the given pool
@@ -64,6 +70,7 @@ library Path {
     /// @param path The swap path
     /// @return The remaining token + fee elements in the path
     function skipToken(bytes memory path) internal pure returns (bytes memory) {
+        // NEXT_OFFSET==23,从23位开始，剩余的数量
         return path.slice(NEXT_OFFSET, path.length - NEXT_OFFSET);
     }
 }

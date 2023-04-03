@@ -5,6 +5,7 @@ import './BlockTimestamp.sol';
 
 abstract contract PeripheryValidation is BlockTimestamp {
     modifier checkDeadline(uint256 deadline) {
+        // 没超过截止时间
         require(_blockTimestamp() <= deadline, 'Transaction too old');
         _;
     }
