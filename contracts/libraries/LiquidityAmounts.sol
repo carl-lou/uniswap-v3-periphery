@@ -27,9 +27,9 @@ library LiquidityAmounts {
         uint256 amount0
     ) internal pure returns (uint128 liquidity) {
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
-        // uint256 internal constant Q96 = 0x1000000000000000000000000;
+        // uint256 internal constant Q96 = 0x1000000000000000000000000;  16^24=2^96
         // (sqrtRatioAX96 * sqrtRatioBX96)/FixedPoint96.Q96,允许sqrtRatioAX96 * sqrtRatioBX96的乘积超过256位,但是要小于512位
-        // 2^96的小数位
+        // 除以FixedPoint96.Q96指的是 除以2^96， 小数位96位的Q格式定点数转换成 浮点小数
         uint256 intermediate = FullMath.mulDiv(sqrtRatioAX96, sqrtRatioBX96, FixedPoint96.Q96);
         // amount0 * intermediate / (sqrtRatioBX96 - sqrtRatioAX96)
         // (amount0 * (sqrtRatioAX96 * sqrtRatioBX96)/FixedPoint96.Q96) / (sqrtRatioBX96 - sqrtRatioAX96)
@@ -70,6 +70,7 @@ library LiquidityAmounts {
         // 调换顺序,小的排前面
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
+        // 分三种情况，当前价格实在流动性区间内，还是上/下
         if (sqrtRatioX96 <= sqrtRatioAX96) {
             // 当前价格p=  token1/token0,  如以太币/USDT=2000
             // 当前价格小于最小刻度a,也就是当前市场价 在LP做市商 提供的流动性边界范围之外,那么LP老板应注入的资金全都是token0

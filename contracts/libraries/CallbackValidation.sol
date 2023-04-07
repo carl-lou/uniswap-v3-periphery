@@ -6,6 +6,7 @@ import './PoolAddress.sol';
 
 /// @notice Provides validation for callbacks from Uniswap V3 Pools
 library CallbackValidation {
+    // 返回一个有效的 uniswapV3Pool的地址
     /// @notice Returns the address of a valid Uniswap V3 Pool
     /// @param factory The contract address of the Uniswap V3 factory
     /// @param tokenA The contract address of either token0 or token1

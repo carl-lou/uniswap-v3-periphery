@@ -53,20 +53,37 @@ contract SwapRouter is
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata _data) external override {
         // 不支持完全在零流动性区域内的交易，必须两个token其中之一大于0
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
+        // abi.decode第二个参数(SwapCallbackData)是返回参数的类型
+        // 这里就是abi解析一下
         SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
+        // 解析出第一个交易对里的 两个token的地址和fee
         (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
+        // 验证调用这个方法的地址是tokenIn, tokenOut, fee这交易对的 V3 Pool池子的地址
         CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee);
 
+        // 判断函数的参数中哪个是本次支付需要支付的代币
         (bool isExactInput, uint256 amountToPay) = amount0Delta > 0
-            ? (tokenIn < tokenOut, uint256(amount0Delta))
-            : (tokenOut < tokenIn, uint256(amount1Delta));
-            
+            ? // 如果转入的是token0，
+            // 那么path里第一个tokenIn地址若是小于第二个地址，那么第一个地址其实就是token0
+            // 注入的资金也是tokenIn
+            (tokenIn < tokenOut, uint256(amount0Delta))
+            : // 如果注入的资金不是token0，而是token1，
+            // tokenOut是token0，那么注入的资金也是tokenIn
+            (tokenOut < tokenIn, uint256(amount1Delta));
+
+        
         if (isExactInput) {
+            // 把tokenIn付给 pool合约
             pay(tokenIn, data.payer, msg.sender, amountToPay);
         } else {
+            // 要么发起下一次交换，要么支付
             // either initiate the next swap or pay
             if (data.path.hasMultiplePools()) {
+                // path里有多个交易对
+                
+                //skipToken函数是删除path里第一个地址+fee
                 data.path = data.path.skipToken();
+                // 再去执行一次交易，用新的Path
                 exactOutputInternal(amountToPay, msg.sender, 0, data);
             } else {
                 amountInCached = amountToPay;
@@ -90,7 +107,7 @@ contract SwapRouter is
 
         // 解码path路径中的第一个交易池 , 返回两个token地址，以及费率
         (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
-        // 第一个地址小于第二个，则zeroForOne为true. 
+        // 第一个地址小于第二个，则zeroForOne为true.
         // 确定这次交易输入的是交易池的token0还是token1
         // 因为交易池中只保存了token0的价格， sqrt(P)=sqrt(token1/token0)，每个token0需要多少个token1
         // token0兑换成token1，和token1兑换成token0，计价公式会不一样，需要换算一下，详细见后续步骤
@@ -103,11 +120,11 @@ contract SwapRouter is
             zeroForOne,
             amountIn.toInt256(),
             sqrtPriceLimitX96 == 0
-            // MIN_SQRT_RATIO = 4295128739
-            // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342
-            // 若不做限价，那么边界就是TickMath里的边界。
-            // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，1转0这是最大值
-                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                ? // MIN_SQRT_RATIO = 4295128739
+                // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342
+                // 若不做限价，那么边界就是TickMath里的边界。
+                // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，1转0这是最大值
+                (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
                 : sqrtPriceLimitX96,
             abi.encode(data)
         );
@@ -137,8 +154,14 @@ contract SwapRouter is
     // 前端会进行遍历 查找哪条路径能兑换出最多的token1，最少的手续费
     function exactInput(
         ExactInputParams memory params
+    )
+        external
+        payable
+        override
         // 需检查没超过交易有效期
-    ) external payable override checkDeadline(params.deadline) returns (uint256 amountOut) {
+        checkDeadline(params.deadline)
+        returns (uint256 amountOut)
+    {
         // 函数调用者为 第一步买单
         address payer = msg.sender; // msg.sender pays for the first hop
 
@@ -154,7 +177,7 @@ contract SwapRouter is
                 params.amountIn,
                 // 对于中间掉期，该合同托管; 需经过多个交易对的交换时，接受者地址 由本合约代持
                 hasMultiplePools ? address(this) : params.recipient, // for intermediate swaps, this contract custodies
-                0,//不做限价
+                0, //不做限价
                 SwapCallbackData({
                     // 只有路径中的第一个池是必需的
                     path: params.path.getFirstPool(), // only the first pool in the path is necessary
@@ -179,6 +202,7 @@ contract SwapRouter is
         require(amountOut >= params.amountOutMinimum, 'Too little received');
     }
 
+    // 执行一次精确的输出交换
     /// @dev Performs a single exact output swap
     function exactOutputInternal(
         uint256 amountOut,
@@ -187,6 +211,7 @@ contract SwapRouter is
         SwapCallbackData memory data
     ) private returns (uint256 amountIn) {
         // allow swapping to the router address with address 0
+        // 若收款人是0地址，那还不如给本合约地址
         if (recipient == address(0)) recipient = address(this);
 
         (address tokenOut, address tokenIn, uint24 fee) = data.path.decodeFirstPool();

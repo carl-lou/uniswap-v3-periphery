@@ -10,6 +10,7 @@ import '../interfaces/IPoolInitializer.sol';
 /// @title Creates and initializes V3 Pools
 abstract contract PoolInitializer is IPoolInitializer, PeripheryImmutableState {
     /// @inheritdoc IPoolInitializer
+    // 创建pool，若没有初始化对其初始化
     function createAndInitializePoolIfNecessary(
         address token0,
         address token1,
