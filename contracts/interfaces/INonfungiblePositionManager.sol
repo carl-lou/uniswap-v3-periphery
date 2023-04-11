@@ -84,11 +84,11 @@ interface INonfungiblePositionManager is
         uint24 fee;
         int24 tickLower;
         int24 tickUpper;
-        uint256 amount0Desired;
+        uint256 amount0Desired;//钱
         uint256 amount1Desired;
         uint256 amount0Min;
         uint256 amount1Min;
-        address recipient;
+        address recipient;//提现
         uint256 deadline;
     }
 

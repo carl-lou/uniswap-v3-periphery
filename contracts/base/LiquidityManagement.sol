@@ -32,7 +32,7 @@ abstract contract LiquidityManagement is IUniswapV3MintCallback, PeripheryImmuta
         MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
         // 验证decoded.poolKey必须是 factory工厂合约  创建的pool合约
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
-        // 如果要转账的钱大于0，就转账,decoded.payer转给msg.sender（poll合约地址）
+        // 如果要转账的钱大于0，就转账,decoded.payer转给msg.sender(pool合约)
         if (amount0Owed > 0) pay(decoded.poolKey.token0, decoded.payer, msg.sender, amount0Owed);
         if (amount1Owed > 0) pay(decoded.poolKey.token1, decoded.payer, msg.sender, amount1Owed);
     }

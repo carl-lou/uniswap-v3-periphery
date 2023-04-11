@@ -18,7 +18,7 @@ import './base/PeripheryValidation.sol';
 import './base/SelfPermit.sol';
 import './base/PoolInitializer.sol';
 
-// 非同质化头寸管理，NFT头寸
+// 非同质化 头寸 管理，NFT头寸
 /// @title NFT positions
 /// @notice Wraps Uniswap V3 positions in the ERC721 non-fungible token interface
 contract NonfungiblePositionManager is
@@ -38,7 +38,7 @@ contract NonfungiblePositionManager is
         // 用于授权的 随机数
         uint96 nonce;
         // the address that is approved for spending this token
-        // 这个NFT的操作者
+        // 这个NFT的操作者，管理员
         address operator;
         // the ID of the pool with which this token is connected
         // 连接的交易对池子
@@ -154,7 +154,7 @@ contract NonfungiblePositionManager is
         }
     }
 
-    /// @inheritdoc INonfungiblePositionManager
+    /// @inherit doc INonfungiblePositionManager
     // 创建一个新的头寸，包裹成一个NFT
     function mint(
         MintParams calldata params

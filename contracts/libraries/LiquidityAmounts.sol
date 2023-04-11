@@ -14,7 +14,7 @@ library LiquidityAmounts {
         require((y = uint128(x)) == x);
     }
 
-    // 根据给定数量的token0和价格范围,计算应收到的流动性数量
+    // 根据给定数量的token0/token1和价格范围,计算应收到的流动性数量
     /// @notice Computes the amount of liquidity received for a given amount of token0 and price range
     /// @dev Calculates amount0 * (sqrt(upper) * sqrt(lower)) / (sqrt(upper) - sqrt(lower))
     /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary 流动性价格下限
@@ -68,6 +68,7 @@ library LiquidityAmounts {
         uint256 amount1
     ) internal pure returns (uint128 liquidity) {
         // 调换顺序,小的排前面
+        //sqrtRatioAX96 lower
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
         // 分三种情况，当前价格实在流动性区间内，还是上/下

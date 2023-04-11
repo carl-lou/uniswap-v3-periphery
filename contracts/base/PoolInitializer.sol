@@ -17,6 +17,7 @@ abstract contract PoolInitializer is IPoolInitializer, PeripheryImmutableState {
         uint24 fee,
         uint160 sqrtPriceX96
     ) external payable override returns (address pool) {
+        // factory,address，16进制数字
         require(token0 < token1);
         // 查询是否已经创建过该交易对
         pool = IUniswapV3Factory(factory).getPool(token0, token1, fee);

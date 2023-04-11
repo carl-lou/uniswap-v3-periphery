@@ -10,9 +10,9 @@ library PoolAddress {
     // 池的标识键，两个token地址，一个fee，即可确定池子的唯一性
     /// @notice The identifying key of the pool
     struct PoolKey {
-        address token0;
-        address token1;
-        uint24 fee;
+        address token0;//ETH
+        address token1;//USDT
+        uint24 fee;//0.3%
     }
 
     /// @notice Returns PoolKey: the ordered tokens with the matched fee levels
