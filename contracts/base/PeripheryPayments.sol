@@ -59,6 +59,7 @@ abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableSta
         uint256 value
     ) internal {
         if (token == WETH9 && address(this).balance >= value) {
+            // 如果是以太币
             // pay with WETH9
             IWETH9(WETH9).deposit{value: value}(); // wrap only what is needed to pay
             IWETH9(WETH9).transfer(recipient, value);

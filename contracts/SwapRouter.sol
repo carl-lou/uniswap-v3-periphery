@@ -62,16 +62,14 @@ contract SwapRouter is
         CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee);
 
         // 判断函数的参数中哪个是本次支付需要支付的代币
-        (bool isExactInput, uint256 amountToPay) = amount0Delta > 0
-            ? // 如果转入的是token0，
-            // 那么path里第一个tokenIn地址若是小于第二个地址，那么第一个地址其实就是token0
-            // 注入的资金也是tokenIn
-            (tokenIn < tokenOut, uint256(amount0Delta))
-            : // 如果注入的资金不是token0，而是token1，
-            // tokenOut是token0，那么注入的资金也是tokenIn
-            (tokenOut < tokenIn, uint256(amount1Delta));
+        (bool isExactInput, uint256 amountToPay) = amount0Delta > 0 
+            ? 
+            // 如果转入的是token0，那么注入的资金也是tokenIn
+            // path里第一个tokenIn地址若是小于第二个地址，那么isExactInput=true
+            (tokenIn < tokenOut, uint256(amount0Delta)) 
+            // 如果注入的资金不是token0，而是token1， // tokenOut是token0，说明这次是指定
+            : (tokenOut < tokenIn, uint256(amount1Delta));
 
-        
         if (isExactInput) {
             // 把tokenIn付给 pool合约
             pay(tokenIn, data.payer, msg.sender, amountToPay);
@@ -80,13 +78,14 @@ contract SwapRouter is
             // either initiate the next swap or pay
             if (data.path.hasMultiplePools()) {
                 // path里有多个交易对
-                
+
                 //skipToken函数是删除path里第一个地址+fee
                 data.path = data.path.skipToken();
                 // 再去执行一次交易，用新的Path
                 exactOutputInternal(amountToPay, msg.sender, 0, data);
             } else {
                 amountInCached = amountToPay;
+                // 把输出赋值给输入，因为精确的输出互换是反向的
                 tokenIn = tokenOut; // swap in/out because exact output swaps are reversed
                 pay(tokenIn, data.payer, msg.sender, amountToPay);
             }
@@ -119,11 +118,10 @@ contract SwapRouter is
             recipient,
             zeroForOne,
             amountIn.toInt256(),
-            sqrtPriceLimitX96 == 0
-                ? // MIN_SQRT_RATIO = 4295128739
-                // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342
-                // 若不做限价，那么边界就是TickMath里的边界。
-                // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，1转0这是最大值
+            sqrtPriceLimitX96 == 0 // MIN_SQRT_RATIO = 4295128739 // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342
+                ? // 若不做限价，那么边界就是TickMath里的边界。
+                // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，
+                // 若1转0，因为pool合约里的价格是token0的价格，token1/token0, 
                 (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
                 : sqrtPriceLimitX96,
             abi.encode(data)
@@ -203,19 +201,21 @@ contract SwapRouter is
     }
 
     // 执行一次精确的输出交换
+    // 指定输出多少金额，求需要输入多少金额
     /// @dev Performs a single exact output swap
     function exactOutputInternal(
-        uint256 amountOut,
+        uint256 amountOut, //指定输出多少金额
         address recipient,
-        uint160 sqrtPriceLimitX96,
+        uint160 sqrtPriceLimitX96, //限价，若没有则为0
         SwapCallbackData memory data
     ) private returns (uint256 amountIn) {
         // allow swapping to the router address with address 0
         // 若收款人是0地址，那还不如给本合约地址
         if (recipient == address(0)) recipient = address(this);
 
+        // 解析path里第一个组交易对
         (address tokenOut, address tokenIn, uint24 fee) = data.path.decodeFirstPool();
-
+        // 地址大小比对，是不是输入的token地址更小（是不是地址小的token0兑换地址大的token1）
         bool zeroForOne = tokenIn < tokenOut;
 
         (int256 amount0Delta, int256 amount1Delta) = getPool(tokenIn, tokenOut, fee).swap(
@@ -230,9 +230,13 @@ contract SwapRouter is
 
         uint256 amountOutReceived;
         (amountIn, amountOutReceived) = zeroForOne
-            ? (uint256(amount0Delta), uint256(-amount1Delta))
+            ? // 如果是token0转给token1，那么，输入是amount0Delta，输出是amount1Deleta
+            // 输出的值，在pool合约里记录的是负值，所以要取反一下
+            (uint256(amount0Delta), uint256(-amount1Delta))
             : (uint256(amount1Delta), uint256(-amount0Delta));
+        // 有技术上的可能性，会导致没有收到足额的输出金额
         // it's technically possible to not receive the full output amount,
+        // 所以如果没有指定的价格限制，排除这种可能性，要求必须是实际输出金额等于 要求的金额
         // so if no price limit has been specified, require this possibility away
         if (sqrtPriceLimitX96 == 0) require(amountOutReceived == amountOut);
     }
