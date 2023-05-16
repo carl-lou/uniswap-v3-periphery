@@ -18,7 +18,7 @@ library Path {
     // 单个代币地址和池费的偏移量(偏移量 应可视作做 字节长度)
     uint256 private constant NEXT_OFFSET = ADDR_SIZE + FEE_SIZE;
     /// @dev The offset of an encoded pool key
-    // 已编码池键的偏移量
+    // 已编码池键的偏移量43
     uint256 private constant POP_OFFSET = NEXT_OFFSET + ADDR_SIZE;
     /// @dev The minimum length of an encoding that contains 2 or more pools
     // 包含2个或更多池的编码的最小长度,3个地址+2个费率的长度

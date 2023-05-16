@@ -59,15 +59,20 @@ abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableSta
         uint256 value
     ) internal {
         if (token == WETH9 && address(this).balance >= value) {
-            // 如果是以太币
+            // 如果是包裹的以太币
             // pay with WETH9
+            // 先给WETH9合约存入ETH
             IWETH9(WETH9).deposit{value: value}(); // wrap only what is needed to pay
+            // 通过WETH9合约里的转账方法，给recipient转账
             IWETH9(WETH9).transfer(recipient, value);
         } else if (payer == address(this)) {
+            // address(this)就是SwapRouter合约
             // pay with tokens already in the contract (for the exact input multihop case)
             TransferHelper.safeTransfer(token, recipient, value);
         } else {
             // pull payment
+            // 真正的支付者 授权给 本合约，而不是直接转账给本合约的情况
+            // 那么通过使用授权金额去转账的方式
             TransferHelper.safeTransferFrom(token, payer, recipient, value);
         }
     }

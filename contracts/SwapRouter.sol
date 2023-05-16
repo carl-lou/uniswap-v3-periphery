@@ -45,8 +45,8 @@ contract SwapRouter is
     }
 
     struct SwapCallbackData {
-        bytes path;
-        address payer;
+        bytes path;//交易币种地址+fee 的单对/多对 拼接组合
+        address payer;//注入资金的 账户地址
     }
 
     /// @inheritdoc IUniswapV3SwapCallback
@@ -56,29 +56,33 @@ contract SwapRouter is
         // abi.decode第二个参数(SwapCallbackData)是返回参数的类型
         // 这里就是abi解析一下
         SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
-        // 解析出第一个交易对里的 两个token的地址和fee
+        // 解析出第一个交易对里的 两个token的地址和fee，这里的两个地址先后顺序，
+        // 前面那个是输入的币种，后面是输出的，并不代表前面的地址数值小（不一定是token0)
         (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
         // 验证调用这个方法的地址是tokenIn, tokenOut, fee这交易对的 V3 Pool池子的地址
+        // 内部会调整tokenIn,tokenOut顺序，改成16进制数值小的token0地址在前面
         CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee);
 
         // 判断函数的参数中哪个是本次支付需要支付的代币
-        (bool isExactInput, uint256 amountToPay) = amount0Delta > 0 
-            ? 
-            // 如果转入的是token0，那么注入的资金也是tokenIn
-            // path里第一个tokenIn地址若是小于第二个地址，那么isExactInput=true
-            (tokenIn < tokenOut, uint256(amount0Delta)) 
-            // 如果注入的资金不是token0，而是token1， // tokenOut是token0，说明这次是指定
-            : (tokenOut < tokenIn, uint256(amount1Delta));
+        (bool isExactInput, uint256 amountToPay) = amount0Delta > 0
+            ? // 如果需要转账的币种是token0，那么注入的资金也是tokenIn
+            // path里第一个tokenIn地址若是小于第二个地址，那么说明tokenIn是token0，
+            // 这次转给pool合约的注入资金就是token0，amount0，那么isExactInput=true，直接转账
+            // 如果tokenIn>tokenOut，那么说明tokenOut才是token0,
+            (tokenIn < tokenOut, uint256(amount0Delta))
+            : // 这次要转账的是token1，
+            // 若tokenOut是token0，则isExactInput=true，直接转账
+            (tokenOut < tokenIn, uint256(amount1Delta));
 
         if (isExactInput) {
             // 把tokenIn付给 pool合约
             pay(tokenIn, data.payer, msg.sender, amountToPay);
         } else {
-            // 要么发起下一次交换，要么支付
+            // isExactInput==false的情况下，
+            // 根据path里是否有多个交易对，判断要么发起下一次交换，要么支付
             // either initiate the next swap or pay
             if (data.path.hasMultiplePools()) {
                 // path里有多个交易对
-
                 //skipToken函数是删除path里第一个地址+fee
                 data.path = data.path.skipToken();
                 // 再去执行一次交易，用新的Path
@@ -90,6 +94,10 @@ contract SwapRouter is
                 pay(tokenIn, data.payer, msg.sender, amountToPay);
             }
         }
+
+
+        // 举例 path里是 USDT换dai，tokenIn是USDT
+        // amount0Delta>0，若USDT<dai，，token0==tokenIn说明要给pool合约转USDT
     }
 
     /// @dev Performs a single exact input swap
@@ -97,7 +105,7 @@ contract SwapRouter is
     function exactInputInternal(
         uint256 amountIn,
         address recipient,
-        uint160 sqrtPriceLimitX96,
+        uint160 sqrtPriceLimitX96,// 可以根据滑点等方式,0表示不作限价
         SwapCallbackData memory data
     ) private returns (uint256 amountOut) {
         // 接受者如果是0地址，则改为当前合约地址（销毁掉还不如给老子）
@@ -115,14 +123,27 @@ contract SwapRouter is
         // 去调用 交易池合约 里的swap方法
         // 返回交易后的token0/token1金额
         (int256 amount0, int256 amount1) = getPool(tokenIn, tokenOut, fee).swap(
-            recipient,
+            recipient,//address(this)或者exactInput里指定的recipient
             zeroForOne,
-            amountIn.toInt256(),
-            sqrtPriceLimitX96 == 0 // MIN_SQRT_RATIO = 4295128739 // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342
-                ? // 若不做限价，那么边界就是TickMath里的边界。
-                // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，
-                // 若1转0，因为pool合约里的价格是token0的价格，token1/token0, 
+            amountIn.toInt256(),//注入的tokenIn金额，如10个WETH
+            sqrtPriceLimitX96 == 0 
+            // MIN_SQRT_RATIO = 4295128739 
+            // MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342 
+            // 若不做限价，那么边界就是TickMath里的边界。
+                ? // 若是0转换成1，那么价格限制为最小值MIN_SQRT_RATIO，价格不能变太低，在小的方向限制
+                // 比如WETH兑换USDT（注入1个WETH，假设WETH是token0，那现在就是token0兑换成token1，zeroForOne==true），
+                // 价格是token1/token0（USDT/WETH），假设当前WETH市场价是2000U，
+                // 限价肯定要小于2000，要求不能兑换少了（如不能少于1800）。  
+                // 而不会说能给我兑换3000个USDT，我也去限制一下。
+                // 所以这是往比当前价格低的方向,min最小值做限制
+
+                // 若1转0,方向会相反，要往价格高的方向去限制。
+                // 如USDT兑换ETH，那sqrt(p)价格还是2000/1
+                // 那么注入2000个USDT，我希望兑换出来的WETH肯定不能少于0.9个,那么这里的价格是2000/0.9,结果大于2000,
+                
+                // +1,-1应该是为了防止四舍五入时精度丢失导致的误差
                 (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                // 不是0，那么就是传入的值
                 : sqrtPriceLimitX96,
             abi.encode(data)
         );
@@ -221,6 +242,7 @@ contract SwapRouter is
         (int256 amount0Delta, int256 amount1Delta) = getPool(tokenIn, tokenOut, fee).swap(
             recipient,
             zeroForOne,
+            // 这里是负值
             -amountOut.toInt256(),
             sqrtPriceLimitX96 == 0
                 ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
@@ -229,9 +251,8 @@ contract SwapRouter is
         );
 
         uint256 amountOutReceived;
-        (amountIn, amountOutReceived) = zeroForOne
-            ? // 如果是token0转给token1，那么，输入是amount0Delta，输出是amount1Deleta
-            // 输出的值，在pool合约里记录的是负值，所以要取反一下
+        (amountIn, amountOutReceived) = zeroForOne // 如果是token0转给token1，那么，输入是amount0Delta，输出是amount1Deleta
+            ? // 输出的值，在pool合约里记录的是负值，所以要取反一下
             (uint256(amount0Delta), uint256(-amount1Delta))
             : (uint256(amount1Delta), uint256(-amount0Delta));
         // 有技术上的可能性，会导致没有收到足额的输出金额

@@ -8,8 +8,8 @@ import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.so
 /// @notice Functions for swapping tokens via Uniswap V3
 interface ISwapRouter is IUniswapV3SwapCallback {
     struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
+        address tokenIn;//wETH
+        address tokenOut;//usdt
         uint24 fee;
         address recipient;
         uint256 deadline;
@@ -24,7 +24,7 @@ interface ISwapRouter is IUniswapV3SwapCallback {
     function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
 
     struct ExactInputParams {
-        bytes path; //代币兑换路径 ，如ETH -> USDC -> DAI
+        bytes path; //代币兑换路径 ，如WETH (fee)-> USDC (fee)-> DAI
         address recipient; //收款地址
         uint256 deadline;   //交易有效期
         uint256 amountIn;  //输入的token数，输入的token地址就是path中的第一个地址
