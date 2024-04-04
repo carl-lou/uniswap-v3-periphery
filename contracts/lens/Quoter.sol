@@ -74,11 +74,11 @@ contract Quoter is IQuoter, IUniswapV3SwapCallback, PeripheryImmutableState {
 
     /// @inheritdoc IQuoter
     function quoteExactInputSingle(
-        address tokenIn,
-        address tokenOut,
-        uint24 fee,
-        uint256 amountIn,
-        uint160 sqrtPriceLimitX96
+        address tokenIn,//指定输入的币种地址
+        address tokenOut,//指定输出的币种地址
+        uint24 fee,//哪个交易池的费率
+        uint256 amountIn,//输入的币种数量
+        uint160 sqrtPriceLimitX96//限价，0表示不限价
     ) public override returns (uint256 amountOut) {
         bool zeroForOne = tokenIn < tokenOut;
 

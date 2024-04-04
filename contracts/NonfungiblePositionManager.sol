@@ -154,7 +154,7 @@ contract NonfungiblePositionManager is
         }
     }
 
-    /// @inherit doc INonfungiblePositionManager
+    ///  doc INonfungiblePositionManager
     // 创建一个新的头寸，包裹成一个NFT
     function mint(
         MintParams calldata params
